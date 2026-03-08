@@ -1,5 +1,5 @@
 /*
- * UI Implementation - Modern connected watch dashboard
+ * UI implementation.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -23,7 +23,7 @@ static const struct theme_palette theme_palettes[THEME_COUNT] = {
     {0xF25CFF, 0x2B1530, "Magenta"},
 };
 
-/* --- Color Helper (SPI BGR fix for ILI9341) --- */
+/* Convert RGB colors to the display format. */
 static inline uint32_t fix_color(uint32_t color)
 {
     return ((color & 0xFF0000) >> 16) |
@@ -36,7 +36,7 @@ static inline lv_color_t color_hex(uint32_t color)
     return lv_color_hex(fix_color(color));
 }
 
-/* --- Theme & Styles --- */
+/* Theme and styles */
 static lv_style_t style_card;
 static lv_style_t style_title;
 static lv_style_t style_muted;
@@ -46,7 +46,7 @@ static bool dark_overlay_enabled;
 static bool ble_connected;
 static uint32_t uptime_seconds;
 
-/* --- Screens --- */
+/* Screens */
 static lv_obj_t *screen_sensors;
 static lv_obj_t *screen_clock;
 static lv_obj_t *screen_compass;
@@ -57,10 +57,10 @@ static lv_obj_t *sleep_overlay;
 static lv_obj_t *status_title;
 static lv_obj_t *status_label;
 
-/* Circular navigation: sensors(0) -> clock(1) -> compass(2) -> pedometer(3) */
+/* Circular navigation order: sensors -> clock -> compass -> pedometer */
 static int current_screen_idx;
 
-/* --- Decorative / Themed Panels --- */
+/* Styled panels */
 static lv_obj_t *sensor_card_env;
 static lv_obj_t *sensor_card_motion;
 static lv_obj_t *sensor_badge;
@@ -83,7 +83,7 @@ static lv_obj_t *compass_mark_w;
 static lv_obj_t *pedometer_panel;
 static lv_obj_t *goal_pill;
 
-/* --- Sensor Screen Widgets --- */
+/* Sensor screen widgets */
 static lv_obj_t *label_temp_val;
 static lv_obj_t *label_hum_val;
 static lv_obj_t *bar_hum;
@@ -93,21 +93,21 @@ static lv_obj_t *label_gyro_val;
 static lv_obj_t *label_mag_val;
 static lv_obj_t *label_datetime_small;
 
-/* --- Clock Screen Widgets --- */
+/* Clock screen widgets */
 static lv_obj_t *arc_seconds;
 static lv_obj_t *label_big_time;
 static lv_obj_t *label_date;
 static lv_obj_t *calendar;
 
-/* --- Compass Screen Widgets --- */
+/* Compass screen widgets */
 static lv_obj_t *label_heading;
 
-/* --- Pedometer Screen Widgets --- */
+/* Pedometer screen widgets */
 static lv_obj_t *arc_steps;
 static lv_obj_t *label_step_count;
 static lv_obj_t *label_step_goal;
 
-/* --- Text Buffers --- */
+/* Text buffers */
 static char datetime_text[32];
 static char date_text[16];
 static char status_text[128];
@@ -134,7 +134,7 @@ static const char *get_theme_name(void)
     return get_theme_palette()->name;
 }
 
-/* --- Touch callbacks (FT6206 touchscreen) --- */
+/* Touch callbacks */
 static void touch_switch_screen_cb(lv_event_t *e)
 {
     (void)e;
@@ -164,7 +164,7 @@ static void touch_close_popup_cb(lv_event_t *e)
     }
 }
 
-/* --- Shared UI Helpers --- */
+/* UI helpers */
 static void init_styles(void)
 {
     lv_style_init(&style_card);
@@ -384,7 +384,7 @@ static void apply_theme(void)
     }
 }
 
-/* --- Build Sensor Screen --- */
+/* Build the sensor screen. */
 static void build_sensor_screen(void)
 {
     lv_disp_t *disp = lv_disp_get_default();
@@ -473,7 +473,7 @@ static void build_sensor_screen(void)
     lv_obj_align(label_datetime_small, LV_ALIGN_CENTER, 0, 0);
 }
 
-/* --- Build Clock Screen --- */
+/* Build the clock screen. */
 static void build_clock_screen(void)
 {
     screen_clock = lv_obj_create(NULL);
@@ -529,7 +529,7 @@ static void build_clock_screen(void)
     lv_calendar_set_showed_date(calendar, 1970, 1);
 }
 
-/* --- Build Compass Screen --- */
+/* Build the compass screen. */
 static void build_compass_screen(void)
 {
     screen_compass = lv_obj_create(NULL);
@@ -647,7 +647,7 @@ static void build_compass_screen(void)
     lv_obj_align(label_heading, LV_ALIGN_BOTTOM_RIGHT, -14, -12);
 }
 
-/* --- Build Pedometer Screen --- */
+/* Build the pedometer screen. */
 static void build_pedometer_screen(void)
 {
     screen_pedometer = lv_obj_create(NULL);
@@ -692,7 +692,7 @@ static void build_pedometer_screen(void)
     lv_obj_align(label_step_goal, LV_ALIGN_CENTER, 0, 0);
 }
 
-/* --- Build Status Popup --- */
+/* Build the status popup. */
 static void build_status_modal(void)
 {
     status_modal = lv_obj_create(lv_layer_top());
@@ -728,7 +728,7 @@ static void build_status_modal(void)
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -10);
 }
 
-/* --- Build Brightness Overlay --- */
+/* Build the dim overlay. */
 static void build_overlay(void)
 {
     lv_disp_t *disp = lv_disp_get_default();
@@ -746,7 +746,7 @@ static void build_overlay(void)
     lv_obj_set_pos(overlay_layer, 0, 0);
 }
 
-/* --- Build Sleep Overlay --- */
+/* Build the sleep overlay. */
 static void build_sleep_overlay(void)
 {
     lv_disp_t *disp = lv_disp_get_default();
@@ -765,7 +765,7 @@ static void build_sleep_overlay(void)
     lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
 }
 
-/* --- UI Init --- */
+/* Initialize the UI. */
 void ui_init(void)
 {
     init_styles();
@@ -783,7 +783,7 @@ void ui_init(void)
     current_screen_idx = 0;
 }
 
-/* --- Button 1: Switch Screen (circular navigation) --- */
+/* Switch to the next screen. */
 void ui_switch_screen(void)
 {
     static lv_obj_t *screens[4];
@@ -797,14 +797,14 @@ void ui_switch_screen(void)
     lv_scr_load(screens[current_screen_idx]);
 }
 
-/* --- Button 2: Cycle Theme Color --- */
+/* Cycle the accent theme. */
 void ui_cycle_theme_color(void)
 {
     theme_index = (theme_index + 1U) % THEME_COUNT;
     apply_theme();
 }
 
-/* --- Button 3: Toggle Brightness --- */
+/* Toggle the dim overlay. */
 void ui_toggle_brightness(void)
 {
     dark_overlay_enabled = !dark_overlay_enabled;
@@ -812,7 +812,7 @@ void ui_toggle_brightness(void)
                             dark_overlay_enabled ? 140 : LV_OPA_0, 0);
 }
 
-/* --- Button 4: Toggle Status Popup --- */
+/* Toggle the status popup. */
 void ui_toggle_status_popup(void)
 {
     if (lv_obj_has_flag(status_modal, LV_OBJ_FLAG_HIDDEN)) {
@@ -843,7 +843,7 @@ void ui_hide_sleep_overlay(void)
     lv_obj_add_flag(sleep_overlay, LV_OBJ_FLAG_HIDDEN);
 }
 
-/* --- Data Updates --- */
+/* Data updates */
 void ui_update_temp_humidity(float temp, float hum)
 {
     lv_label_set_text_fmt(label_temp_val, "%.1f C", (double)temp);

@@ -1,11 +1,5 @@
 /*
- * Event System Definitions
- * Connected Watch — Multitask Preemptive Event-Driven Architecture
- * ================================================================
- * Méthodologie : « Techniques de l'Ingénieur »
- *   Bus d'événements central (k_msgq) reliant toutes les sources
- *   (ISR, Timers, BLE) au CONTROLLER (Machine d'État).
- *
+ * Shared event types and kernel objects.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,32 +11,28 @@
 #include <zephyr/sys/atomic.h>
 #include <stdbool.h>
 
-/* ============================================================
- * EVENT TYPES — Tous les événements circulant sur l'event bus
- * ============================================================ */
+/* Event types posted on the main queue. */
 enum event_type {
     EVT_NONE = 0,
 
-    /* — Button events (INPUT_MGR → CONTROLLER) — */
+    /* Button events */
     EVT_BTN_SWITCH_SCREEN,    /* SW0 : basculer écran Capteurs ↔ Horloge    */
     EVT_BTN_CYCLE_THEME,      /* SW1 : cycler la couleur d'accent            */
     EVT_BTN_BRIGHTNESS,       /* SW2 : basculer overlay luminosité           */
     EVT_BTN_STATUS_POPUP,     /* SW3 : afficher / masquer popup status       */
 
-    /* — Timer events (INPUT_MGR → CONTROLLER) — */
+    /* Timer events */
     EVT_TICK_SENSORS,         /* 250 ms : déclencher lecture capteurs I2C    */
     EVT_TICK_TIME,            /* 1 s : vérifier timeout inactivité           */
 
-    /* — BLE events (BLE callback → CONTROLLER) — */
+    /* BLE events */
     EVT_BLE_TIME_SYNC,        /* Timestamp Unix reçu du smartphone           */
 
-    /* — Internal events (SENSORS → CONTROLLER) — */
+    /* Internal events */
     EVT_SENSOR_DATA_READY,    /* Lecture capteurs terminée                    */
 };
 
-/* ============================================================
- * EVENT MESSAGE — Structure transportée par l'event bus
- * ============================================================ */
+/* Message format stored in the event queue. */
 struct event_msg {
     enum event_type type;
     union {
@@ -51,10 +41,7 @@ struct event_msg {
     } data;
 };
 
-/* ============================================================
- * SENSOR DATA SNAPSHOT
- * Données partagées CONTROLLER ↔ DISPLAY (protégées par mutex)
- * ============================================================ */
+/* Sensor values shared between the controller and the display thread. */
 #define SNAP_VALID_ENV    BIT(0)
 #define SNAP_VALID_PRESS  BIT(1)
 #define SNAP_VALID_MOTION BIT(2)
@@ -70,9 +57,7 @@ struct sensor_snapshot {
     uint8_t valid_flags;      /* bitmask: SNAP_VALID_*                        */
 };
 
-/* ============================================================
- * RAW INPUT — Types bruts ISR / Timers → INPUT_MGR
- * ============================================================ */
+/* Raw inputs posted by interrupts and timers. */
 enum raw_input {
     RAW_BTN0,
     RAW_BTN1,
@@ -82,9 +67,7 @@ enum raw_input {
     RAW_TIMER_TIME,
 };
 
-/* ============================================================
- * UI ACTION FLAGS — Atomic flags CONTROLLER → DISPLAY
- * ============================================================ */
+/* Atomic UI actions posted by the controller. */
 #define UI_ACT_SWITCH_SCREEN   BIT(0)
 #define UI_ACT_CYCLE_THEME     BIT(1)
 #define UI_ACT_BRIGHTNESS      BIT(2)
@@ -93,9 +76,7 @@ enum raw_input {
 #define UI_ACT_ENTER_SLEEP     BIT(5)
 #define UI_ACT_EXIT_SLEEP      BIT(6)
 
-/* ============================================================
- * FSM STATES — Machine d'État du CONTROLLER
- * ============================================================ */
+/* Controller state machine. */
 enum app_state {
     STATE_INIT,    /* Démarrage système, attente premier événement       */
     STATE_IDLE,    /* Fonctionnement normal, attente d'événements        */
@@ -103,9 +84,7 @@ enum app_state {
     STATE_SLEEP,   /* Écran éteint, capteurs en pause, veille            */
 };
 
-/* ============================================================
- * EXTERN KERNEL OBJECTS (définis dans main.c)
- * ============================================================ */
+/* Shared kernel objects. */
 extern struct k_msgq event_bus;        /* Bus principal d'événements     */
 extern struct k_msgq raw_input_q;      /* File ISR/Timer → INPUT_MGR     */
 extern struct k_sem  sem_sensor_start; /* CONTROLLER → SENSORS           */
@@ -120,9 +99,7 @@ extern atomic_t sensor_display_dirty;
 extern atomic_t display_sleeping;
 extern atomic_t shared_step_count;
 
-/* ============================================================
- * INLINE HELPERS — Poster un événement (thread-safe & ISR-safe)
- * ============================================================ */
+/* Small queue helpers. */
 
 /** Poster un événement simple (sans données) sur l'event bus.
  *  Returns -EBUSY if queue full. Caller in thread context should log on failure.

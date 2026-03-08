@@ -1,5 +1,5 @@
 /*
- * UI Header File - Professional Dashboard Design
+ * Previous UI interface snapshot.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,7 +14,7 @@
  */
 void ui_init(void);
 
-/* --- Navigation & Interaction (4 Buttons) --- */
+/* Navigation and interaction */
 
 /**
  * @brief Cycle to the next screen: Sensors → Clock → Compass → Pedometer (Button 1)
@@ -36,7 +36,7 @@ void ui_toggle_brightness(void);
  */
 void ui_toggle_status_popup(void);
 
-/* --- Data Updates --- */
+/* Data updates */
 
 /**
  * @brief Update temperature and humidity display

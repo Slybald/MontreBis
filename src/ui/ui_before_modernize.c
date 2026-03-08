@@ -1,6 +1,5 @@
 /*
- * UI Implementation - Professional Dashboard Design
- * Two-screen layout with Cards, Arc, and Theme support
+ * Previous UI implementation snapshot.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,12 +7,12 @@
 #include <lvgl.h>
 #include <stdio.h>
 
-/* --- Color Helper (SPI BGR fix for ILI9341) --- */
+/* Convert RGB colors to the display format. */
 static inline uint32_t fix_color(uint32_t color) {
     return ((color & 0xFF0000) >> 16) | (color & 0x00FF00) | ((color & 0x0000FF) << 16);
 }
 
-/* --- Theme & Styles --- */
+/* Theme and styles */
 static lv_style_t style_card;
 static lv_style_t style_title;
 static uint32_t current_accent_color = 0x00FFFF; /* Cyan default */
@@ -22,7 +21,7 @@ static bool dark_overlay_enabled = false;
 static bool ble_connected = false;
 static uint32_t uptime_seconds = 0;
 
-/* --- Screens --- */
+/* Screens */
 static lv_obj_t *screen_sensors;
 static lv_obj_t *screen_clock;
 static lv_obj_t *screen_compass;
@@ -31,10 +30,10 @@ static lv_obj_t *overlay_layer;
 static lv_obj_t *status_modal;
 static lv_obj_t *status_label;
 
-/* Circular navigation: sensors(0) → clock(1) → compass(2) → pedometer(3) */
+/* Circular navigation order: sensors -> clock -> compass -> pedometer */
 static int current_screen_idx = 0;
 
-/* --- Sensor Screen Widgets --- */
+/* Sensor screen widgets */
 static lv_obj_t *label_temp_val;
 static lv_obj_t *label_hum_val;
 static lv_obj_t *bar_hum;
@@ -44,33 +43,33 @@ static lv_obj_t *label_gyro_val;
 static lv_obj_t *label_mag_val;
 static lv_obj_t *label_datetime_small;
 
-/* --- Clock Screen Widgets --- */
+/* Clock screen widgets */
 static lv_obj_t *arc_seconds;
 static lv_obj_t *label_big_time;
 static lv_obj_t *label_date;
 static lv_obj_t *calendar;
 
-/* --- Compass Screen Widgets --- */
+/* Compass screen widgets */
 static lv_obj_t *arc_compass;
 static lv_obj_t *label_heading;
 static lv_obj_t *label_cardinal;
 
-/* --- Pedometer Screen Widgets --- */
+/* Pedometer screen widgets */
 static lv_obj_t *arc_steps;
 static lv_obj_t *label_step_count;
 static lv_obj_t *label_step_goal;
 
-/* --- Text Buffers --- */
+/* Text buffers */
 static char datetime_text[32];
 static char date_text[16];
 static char status_text[128];
 
-/* --- Helper: Get current accent color --- */
+/* Return the current accent color. */
 static lv_color_t get_accent_color(void) {
     return lv_color_hex(fix_color(current_accent_color));
 }
 
-/* --- Touch callbacks (FT6206 touchscreen) --- */
+/* Touch callbacks */
 static void touch_switch_screen_cb(lv_event_t *e) {
     (void)e;
     ui_switch_screen();
@@ -92,7 +91,7 @@ static void touch_close_popup_cb(lv_event_t *e) {
     }
 }
 
-/* --- Initialize Styles --- */
+/* Initialize styles. */
 static void init_styles(void) {
     /* Card style: dark gray background with rounded corners */
     lv_style_init(&style_card);
@@ -108,7 +107,7 @@ static void init_styles(void) {
     lv_style_set_text_color(&style_title, lv_color_hex(fix_color(0x888888)));
 }
 
-/* --- Create a Data Card --- */
+/* Create a data card. */
 static lv_obj_t* create_card(lv_obj_t *parent, const char *title, int w, int h) {
     lv_obj_t *card = lv_obj_create(parent);
     lv_obj_add_style(card, &style_card, 0);
@@ -123,9 +122,7 @@ static lv_obj_t* create_card(lv_obj_t *parent, const char *title, int w, int h) 
     return card;
 }
 
-/* --- Build Sensor Screen (Dashboard) ---
- * Toujours en Paysage 320x240 (hor=320, ver=240).
- */
+/* Build the sensor screen. */
 static void build_sensor_screen(void) {
     lv_disp_t *disp = lv_disp_get_default();
     lv_coord_t hor = disp ? lv_disp_get_hor_res(disp) : 320;
@@ -135,7 +132,7 @@ static void build_sensor_screen(void) {
     screen_sensors = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen_sensors, lv_color_hex(fix_color(0x000000)), 0);
 
-    /* Header (tap = switch screen) */
+    /* Header */
     lv_obj_t *header = lv_label_create(screen_sensors);
     lv_label_set_text(header, "CONNECTED WATCH");
     lv_obj_set_style_text_font(header, &lv_font_montserrat_16, 0);
@@ -144,7 +141,7 @@ static void build_sensor_screen(void) {
     lv_obj_add_flag(header, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(header, touch_switch_screen_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Environment Card - largeur adaptée au Paysage (320 de large) */
+    /* Environment card */
     lv_coord_t card_width = hor - 10;
     if (card_width < 180) card_width = 180;
 
@@ -183,7 +180,7 @@ static void build_sensor_screen(void) {
     lv_obj_set_style_text_color(label_press_val, lv_color_hex(fix_color(0xCCCCCC)), 0);
     lv_obj_align(label_press_val, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
-    /* Motion Card (Accel, Gyro, Mag) */
+    /* Motion card */
     lv_obj_t *card_motion = create_card(screen_sensors, "MOTION", card_width, 75);
     lv_obj_align(card_motion, LV_ALIGN_TOP_MID, 0, 96);
     lv_obj_add_flag(card_motion, LV_OBJ_FLAG_CLICKABLE);
@@ -207,7 +204,7 @@ static void build_sensor_screen(void) {
     lv_obj_set_style_text_color(label_mag_val, lv_color_hex(fix_color(0x888888)), 0);
     lv_obj_align(label_mag_val, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
-    /* DateTime at bottom (tap = switch screen) */
+    /* Date and time */
     label_datetime_small = lv_label_create(screen_sensors);
     lv_label_set_text(label_datetime_small, "--/--/---- --:--:--");
     lv_obj_set_style_text_font(label_datetime_small, &lv_font_montserrat_14, 0);
@@ -217,12 +214,12 @@ static void build_sensor_screen(void) {
     lv_obj_add_event_cb(label_datetime_small, touch_switch_screen_cb, LV_EVENT_CLICKED, NULL);
 }
 
-/* --- Build Clock Screen (Circular Design) --- */
+/* Build the clock screen. */
 static void build_clock_screen(void) {
     screen_clock = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen_clock, lv_color_hex(fix_color(0x000000)), 0);
 
-    /* Seconds Arc */
+    /* Seconds arc */
     arc_seconds = lv_arc_create(screen_clock);
     lv_obj_set_size(arc_seconds, 200, 200);
     lv_arc_set_rotation(arc_seconds, 270);
@@ -237,7 +234,7 @@ static void build_clock_screen(void) {
     lv_obj_set_style_arc_width(arc_seconds, 8, LV_PART_INDICATOR);
     lv_obj_align(arc_seconds, LV_ALIGN_CENTER, 0, -10);
 
-    /* Big Time Label (tap = switch screen) */
+    /* Time label */
     label_big_time = lv_label_create(screen_clock);
     lv_label_set_text(label_big_time, "--:--:--");
     lv_obj_set_style_text_font(label_big_time, &lv_font_montserrat_28, 0);
@@ -246,7 +243,7 @@ static void build_clock_screen(void) {
     lv_obj_add_flag(label_big_time, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(label_big_time, touch_switch_screen_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Date Label (tap = toggle calendar) */
+    /* Date label */
     label_date = lv_label_create(screen_clock);
     lv_label_set_text(label_date, "--/--/----");
     lv_obj_set_style_text_font(label_date, &lv_font_montserrat_14, 0);
@@ -255,7 +252,7 @@ static void build_clock_screen(void) {
     lv_obj_add_flag(label_date, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(label_date, touch_toggle_calendar_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Calendar (hidden by default, shown when arc is hidden) */
+    /* Calendar */
     calendar = lv_calendar_create(screen_clock);
     lv_obj_set_size(calendar, 180, 140);
     lv_obj_align(calendar, LV_ALIGN_BOTTOM_MID, 0, -5);
@@ -264,12 +261,12 @@ static void build_clock_screen(void) {
     lv_obj_add_flag(calendar, LV_OBJ_FLAG_HIDDEN);
 }
 
-/* --- Build Compass Screen --- */
+/* Build the compass screen. */
 static void build_compass_screen(void) {
     screen_compass = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen_compass, lv_color_hex(fix_color(0x000000)), 0);
 
-    /* COMPASS title (tap = switch screen) */
+    /* Title */
     lv_obj_t *title = lv_label_create(screen_compass);
     lv_label_set_text(title, "COMPASS");
     lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
@@ -278,7 +275,7 @@ static void build_compass_screen(void) {
     lv_obj_add_flag(title, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(title, touch_switch_screen_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Heading Arc */
+    /* Heading arc */
     arc_compass = lv_arc_create(screen_compass);
     lv_obj_set_size(arc_compass, 200, 200);
     lv_arc_set_rotation(arc_compass, 270);
@@ -293,14 +290,14 @@ static void build_compass_screen(void) {
     lv_obj_set_style_arc_width(arc_compass, 8, LV_PART_INDICATOR);
     lv_obj_align(arc_compass, LV_ALIGN_CENTER, 0, -10);
 
-    /* Heading degrees label */
+    /* Heading in degrees */
     label_heading = lv_label_create(screen_compass);
     lv_label_set_text(label_heading, "0\xC2\xB0");
     lv_obj_set_style_text_font(label_heading, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(label_heading, lv_color_hex(fix_color(0xFFFFFF)), 0);
     lv_obj_align(label_heading, LV_ALIGN_CENTER, 0, -20);
 
-    /* Cardinal direction label */
+    /* Cardinal direction */
     label_cardinal = lv_label_create(screen_compass);
     lv_label_set_text(label_cardinal, "N");
     lv_obj_set_style_text_font(label_cardinal, &lv_font_montserrat_16, 0);
@@ -308,12 +305,12 @@ static void build_compass_screen(void) {
     lv_obj_align(label_cardinal, LV_ALIGN_CENTER, 0, 15);
 }
 
-/* --- Build Pedometer Screen --- */
+/* Build the pedometer screen. */
 static void build_pedometer_screen(void) {
     screen_pedometer = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen_pedometer, lv_color_hex(fix_color(0x000000)), 0);
 
-    /* PEDOMETER title (tap = switch screen) */
+    /* Title */
     lv_obj_t *title = lv_label_create(screen_pedometer);
     lv_label_set_text(title, "PEDOMETER");
     lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
@@ -322,7 +319,7 @@ static void build_pedometer_screen(void) {
     lv_obj_add_flag(title, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(title, touch_switch_screen_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Steps Arc */
+    /* Steps arc */
     arc_steps = lv_arc_create(screen_pedometer);
     lv_obj_set_size(arc_steps, 200, 200);
     lv_arc_set_rotation(arc_steps, 270);
@@ -337,14 +334,14 @@ static void build_pedometer_screen(void) {
     lv_obj_set_style_arc_width(arc_steps, 8, LV_PART_INDICATOR);
     lv_obj_align(arc_steps, LV_ALIGN_CENTER, 0, -10);
 
-    /* Step count label */
+    /* Step count */
     label_step_count = lv_label_create(screen_pedometer);
     lv_label_set_text(label_step_count, "0");
     lv_obj_set_style_text_font(label_step_count, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(label_step_count, lv_color_hex(fix_color(0xFFFFFF)), 0);
     lv_obj_align(label_step_count, LV_ALIGN_CENTER, 0, -20);
 
-    /* Goal label */
+    /* Goal */
     label_step_goal = lv_label_create(screen_pedometer);
     lv_label_set_text(label_step_goal, "0 / 10000 steps");
     lv_obj_set_style_text_font(label_step_goal, &lv_font_montserrat_14, 0);
@@ -352,7 +349,7 @@ static void build_pedometer_screen(void) {
     lv_obj_align(label_step_goal, LV_ALIGN_CENTER, 0, 15);
 }
 
-/* --- Build Status Popup --- */
+/* Build the status popup. */
 static void build_status_modal(void) {
     status_modal = lv_obj_create(lv_layer_top());
     lv_obj_set_size(status_modal, 220, 130);
@@ -379,9 +376,7 @@ static void build_status_modal(void) {
     lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 15);
 }
 
-/* --- Build Brightness Overlay ---
- * Paysage 320x240 uniquement.
- */
+/* Build the dim overlay. */
 static void build_overlay(void) {
     lv_disp_t *disp = lv_disp_get_default();
     lv_coord_t hor = disp ? lv_disp_get_hor_res(disp) : 320;
@@ -396,7 +391,7 @@ static void build_overlay(void) {
     lv_obj_set_pos(overlay_layer, 0, 0);
 }
 
-/* --- UI Init --- */
+/* Initialize the UI. */
 void ui_init(void) {
     init_styles();
     build_sensor_screen();
@@ -410,7 +405,7 @@ void ui_init(void) {
     current_screen_idx = 0;
 }
 
-/* --- Button 1: Switch Screen (circular navigation) --- */
+/* Switch to the next screen. */
 void ui_switch_screen(void) {
     static lv_obj_t *screens[4];
     screens[0] = screen_sensors;
@@ -422,7 +417,7 @@ void ui_switch_screen(void) {
     lv_scr_load_anim(screens[current_screen_idx], LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
 }
 
-/* --- Button 2: Cycle Theme Color --- */
+/* Cycle the accent theme. */
 void ui_cycle_theme_color(void) {
     theme_index = (theme_index + 1) % 4;
     switch (theme_index) {
@@ -434,7 +429,7 @@ void ui_cycle_theme_color(void) {
 
     lv_color_t c = get_accent_color();
 
-    /* Update all accent-colored elements */
+    /* Update accent-colored elements */
     lv_obj_set_style_text_color(label_temp_val, c, 0);
     lv_obj_set_style_bg_color(bar_hum, c, LV_PART_INDICATOR);
     lv_obj_set_style_text_color(label_datetime_small, c, 0);
@@ -447,16 +442,16 @@ void ui_cycle_theme_color(void) {
     lv_obj_set_style_text_color(label_step_goal, c, 0);
 }
 
-/* --- Button 3: Toggle Brightness --- */
+/* Toggle the dim overlay. */
 void ui_toggle_brightness(void) {
     dark_overlay_enabled = !dark_overlay_enabled;
     lv_obj_set_style_bg_opa(overlay_layer, dark_overlay_enabled ? 150 : LV_OPA_0, 0);
 }
 
-/* --- Button 4: Toggle Status Popup --- */
+/* Toggle the status popup. */
 void ui_toggle_status_popup(void) {
     if (lv_obj_has_flag(status_modal, LV_OBJ_FLAG_HIDDEN)) {
-        /* Update status text before showing */
+        /* Update the status text before showing the popup */
         const char *theme_names[] = {"Cyan", "Green", "Orange", "Magenta"};
         snprintf(status_text, sizeof(status_text),
                  "BLE: %s\nUptime: %us\nTheme: %s",
@@ -470,7 +465,7 @@ void ui_toggle_status_popup(void) {
     }
 }
 
-/* --- Data Updates --- */
+/* Data updates */
 
 void ui_update_temp_humidity(float temp, float hum) {
     lv_label_set_text_fmt(label_temp_val, "%.1f C", temp);
@@ -495,7 +490,7 @@ void ui_update_magnetometer(float x, float y, float z) {
 }
 
 void ui_update_datetime(int year, int month, int day, int hour, int minute, int second) {
-    /* Sensor screen: full datetime */
+    /* Sensor screen datetime */
     snprintf(datetime_text, sizeof(datetime_text), "%02d/%02d/%04d %02d:%02d:%02d",
              day, month, year, hour, minute, second);
     lv_label_set_text(label_datetime_small, datetime_text);

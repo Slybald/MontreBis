@@ -1,0 +1,323 @@
+<mxfile host="app.diagrams.net" version="29.3.8">
+  <diagram name="DFD" id="dfd_nrf5340">
+    <mxGraphModel dx="1900" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ========== BACKGROUND ========== -->
+        <mxCell id="bg_dash" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 8;" value="" vertex="1">
+          <mxGeometry x="50" y="-40" width="1550" height="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="bg_sys" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;strokeWidth=3;" value="" vertex="1">
+          <mxGeometry x="350" y="0" width="880" height="980" as="geometry" />
+        </mxCell>
+
+        <!-- ========== TITLE ========== -->
+        <mxCell id="title" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;div&gt;&lt;span style=&quot;font-size: 36px;&quot;&gt;DIAGRAMME DE FLUX DE DONN&amp;Eacute;ES&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry x="430" y="-110" width="650" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ========== MCU LABEL (on system boundary) ========== -->
+        <mxCell id="mcu_label_top" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;fontSize=16;" value="nRF5340DK" vertex="1">
+          <mxGeometry x="640" y="10" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mcu_label_sub" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=12;fontStyle=2;" value="Zephyr RTOS" vertex="1">
+          <mxGeometry x="670" y="35" width="160" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="mcu_label_bottom" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;fontSize=14;" value="nRF5340DK — Zephyr RTOS" vertex="1">
+          <mxGeometry x="570" y="950" width="300" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- ========== EXTERNAL ENTITIES (Left) ========== -->
+        <mxCell id="ext_sensors" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Capteurs I2C1&lt;div&gt;(LSM6DSO, LIS2MDL,&lt;/div&gt;&lt;div&gt;HTS221, LPS22HH)&lt;/div&gt;" vertex="1">
+          <mxGeometry x="-130" y="50" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_rtc" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="RTC&lt;div&gt;(RV-8263-C8)&lt;/div&gt;&lt;div&gt;I2C2&lt;/div&gt;" vertex="1">
+          <mxGeometry x="-130" y="170" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_buttons" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Boutons&lt;div&gt;SW0-SW3&lt;/div&gt;&lt;div&gt;(GPIO IRQ)&lt;/div&gt;" vertex="1">
+          <mxGeometry x="-130" y="400" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_timers" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Timers k_timer&lt;div&gt;(250ms + 1s)&lt;/div&gt;" vertex="1">
+          <mxGeometry x="-130" y="520" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_ble" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="BLE&lt;div&gt;Smartphone&lt;/div&gt;" vertex="1">
+          <mxGeometry x="-130" y="650" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_touch" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Touchscreen&lt;div&gt;(FT6206)&lt;/div&gt;&lt;div&gt;I2C1&lt;/div&gt;" vertex="1">
+          <mxGeometry x="-130" y="850" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ========== EXTERNAL ENTITIES (Right) ========== -->
+        <mxCell id="ext_display" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="ILI9341 Screen&lt;div&gt;(SPI)&lt;/div&gt;" vertex="1">
+          <mxGeometry x="1380" y="850" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_uart" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="UART Terminal" vertex="1">
+          <mxGeometry x="1380" y="350" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ========== PROCESSES (Ellipses) ========== -->
+        <mxCell id="proc_sensors" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="SENSORS&lt;div&gt;(P7)&lt;/div&gt;&lt;div&gt;&lt;i&gt;Lecture I2C&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry x="500" y="30" width="160" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="proc_input" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="INPUT_MGR&lt;div&gt;(P3)&lt;/div&gt;&lt;div&gt;&lt;i&gt;Debounce&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry x="420" y="370" width="150" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="proc_ctrl" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="CONTROLLER&lt;div&gt;(P5) &amp;mdash; FSM&lt;/div&gt;&lt;div&gt;&lt;i&gt;INIT/IDLE/ACTIVE/SLEEP&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry x="750" y="360" width="190" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="proc_display" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="DISPLAY&lt;div&gt;(P9)&lt;/div&gt;&lt;div&gt;&lt;i&gt;wait sem + LVGL UI&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry x="920" y="810" width="160" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ========== DATA STORES ========== -->
+        <mxCell id="store_raw" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;" value="raw_input_q (k_msgq)" vertex="1">
+          <mxGeometry x="400" y="540" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="store_evt" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;" value="event_bus (k_msgq)" vertex="1">
+          <mxGeometry x="620" y="540" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="store_shared" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;" value="shared_sensors&lt;div&gt;(struct sensor_snapshot, k_mutex)&lt;/div&gt;" vertex="1">
+          <mxGeometry x="470" y="200" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="store_sem" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;" value="sem_sensor_start (k_sem)" vertex="1">
+          <mxGeometry x="770" y="200" width="180" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="store_ui" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;" value="ui_action_flags (atomic_t)" vertex="1">
+          <mxGeometry x="920" y="680" width="180" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="store_dirty" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;" value="sensor_display_dirty (atomic_t)" vertex="1">
+          <mxGeometry x="920" y="740" width="180" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ========== DATA FLOWS ========== -->
+
+        <!-- Ext Sensors ↔ SENSORS process (I2C1) -->
+        <mxCell id="f1" parent="1" edge="1" source="ext_sensors" target="proc_sensors" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;startArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="sensor_sample_fetch()&lt;div&gt;I2C1&lt;/div&gt;" vertex="1">
+          <mxGeometry x="200" y="40" width="130" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Ext RTC ↔ CONTROLLER (I2C2) -->
+        <mxCell id="f2" parent="1" edge="1" source="ext_rtc" target="proc_ctrl" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;startArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="rtc_get/set_time()&lt;div&gt;I2C2&lt;/div&gt;" vertex="1">
+          <mxGeometry x="200" y="200" width="120" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Buttons ISR → raw_input_q -->
+        <mxCell id="f3" parent="1" edge="1" source="ext_buttons" target="store_raw" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;entryX=0.15;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="250" y="430" />
+              <mxPoint x="250" y="530" />
+              <mxPoint x="425" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="raw_input_post()&lt;div&gt;RAW_BTN0..3&lt;/div&gt;" vertex="1">
+          <mxGeometry x="170" y="470" width="130" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Timers → raw_input_q -->
+        <mxCell id="f4" parent="1" edge="1" source="ext_timers" target="store_raw" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;entryX=0.75;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="325" y="550" />
+              <mxPoint x="325" y="515" />
+              <mxPoint x="525" y="515" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl4" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="raw_input_post()&lt;div&gt;RAW_TIMER_*&lt;/div&gt;" vertex="1">
+          <mxGeometry x="170" y="560" width="130" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- BLE → event_bus (direct, time sync) -->
+        <mxCell id="f5" parent="1" edge="1" source="ext_ble" target="store_evt" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="280" y="620" />
+              <mxPoint x="280" y="600" />
+              <mxPoint x="705" y="600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl5" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="event_post_val()&lt;div&gt;EVT_BLE_TIME_SYNC&lt;/div&gt;" vertex="1">
+          <mxGeometry x="170" y="640" width="140" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- raw_input_q → INPUT_MGR -->
+        <mxCell id="f6" parent="1" edge="1" source="store_raw" target="proc_input" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- INPUT_MGR → event_bus -->
+        <mxCell id="f7" parent="1" edge="1" source="proc_input" target="store_evt" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl7" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="event_post()" vertex="1">
+          <mxGeometry x="560" y="470" width="80" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- event_bus → CONTROLLER -->
+        <mxCell id="f8" parent="1" edge="1" source="store_evt" target="proc_ctrl" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- CONTROLLER → sem_sensor_start -->
+        <mxCell id="f9" parent="1" edge="1" source="proc_ctrl" target="store_sem" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl9" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="k_sem_give()" vertex="1">
+          <mxGeometry x="890" y="280" width="80" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- sem_sensor_start → SENSORS -->
+        <mxCell id="f10" parent="1" edge="1" source="store_sem" target="proc_sensors" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- SENSORS → shared_sensors -->
+        <mxCell id="f11" parent="1" edge="1" source="proc_sensors" target="store_shared" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl11" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="k_mutex_lock() + write" vertex="1">
+          <mxGeometry x="400" y="155" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- SENSORS → event_bus (EVT_SENSOR_DATA_READY) -->
+        <mxCell id="f12" parent="1" edge="1" source="proc_sensors" target="store_evt" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;dashed=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="700" y="80" />
+              <mxPoint x="700" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl12" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="EVT_SENSOR_DATA_READY" vertex="1">
+          <mxGeometry x="710" y="140" width="140" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- shared_sensors → CONTROLLER (for BLE notify) -->
+        <mxCell id="f13" parent="1" edge="1" source="store_shared" target="proc_ctrl" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="k_mutex_lock() + read&lt;div&gt;process_sensor_data()&lt;/div&gt;" vertex="1">
+          <mxGeometry x="860" y="240" width="130" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- CONTROLLER → BLE (notifications out) -->
+        <mxCell id="f14" parent="1" edge="1" source="proc_ctrl" target="ext_ble" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="415" />
+              <mxPoint x="380" y="680" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl14" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="BLE notify&lt;div&gt;env/press/motion&lt;/div&gt;&lt;div&gt;mag/steps/compass&lt;/div&gt;" vertex="1">
+          <mxGeometry x="35" y="666" width="110" height="38" as="geometry" />
+        </mxCell>
+
+        <!-- CONTROLLER → ui_action_flags -->
+        <mxCell id="f15" parent="1" edge="1" source="proc_ctrl" target="store_ui" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;exitX=1;exitY=0.72;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="975" y="440" />
+              <mxPoint x="975" y="665" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl15" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="atomic_or()" vertex="1">
+          <mxGeometry x="970" y="600" width="80" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- CONTROLLER → UART (logging) -->
+        <mxCell id="f16" parent="1" edge="1" source="proc_ctrl" target="ext_uart" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl16" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="LOG_INF()" vertex="1">
+          <mxGeometry x="1200" y="360" width="70" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ui_action_flags → DISPLAY -->
+        <mxCell id="f17" parent="1" edge="1" source="store_ui" target="proc_display" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;exitX=0.35;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.2;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="760" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl17" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="ui_switch_screen()&lt;div&gt;ui_cycle_theme_color()...&lt;/div&gt;" vertex="1">
+          <mxGeometry x="1060" y="700" width="125" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- CONTROLLER → sensor_display_dirty -->
+        <mxCell id="f17b" parent="1" edge="1" source="proc_ctrl" target="store_dirty" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;exitX=1;exitY=0.88;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1025" y="455" />
+              <mxPoint x="1025" y="725" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl17b" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="atomic_set()" vertex="1">
+          <mxGeometry x="970" y="760" width="85" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- sensor_display_dirty → DISPLAY -->
+        <mxCell id="f17c" parent="1" edge="1" source="store_dirty" target="proc_display" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;exitX=0.7;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.78;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1045" y="790" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl17c" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="atomic_cas()" vertex="1">
+          <mxGeometry x="1060" y="785" width="90" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- shared_sensors → DISPLAY -->
+        <mxCell id="f18" parent="1" edge="1" source="store_shared" target="proc_display" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1130" y="220" />
+              <mxPoint x="1130" y="860" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl18" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="ui_update_temp_humidity()&lt;div&gt;ui_update_accel()...&lt;/div&gt;" vertex="1">
+          <mxGeometry x="1140" y="780" width="110" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Touchscreen → DISPLAY (LVGL indev) -->
+        <mxCell id="f19" parent="1" edge="1" source="ext_touch" target="proc_display" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;entryX=0;entryY=0.7;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="870" />
+              <mxPoint x="300" y="930" />
+              <mxPoint x="905" y="930" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fl19" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="ft6206_read()&lt;div&gt;I2C1 partag&amp;eacute; + LVGL indev&lt;/div&gt;" vertex="1">
+          <mxGeometry x="435" y="865" width="130" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- DISPLAY → Screen (SPI) -->
+        <mxCell id="f20" parent="1" edge="1" source="proc_display" target="ext_display" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;endArrow=classic;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fl20" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=9;" value="lv_task_handler()&lt;div&gt;SPI&lt;/div&gt;" vertex="1">
+          <mxGeometry x="1170" y="870" width="110" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: Texas Instruments TSC2007 resistive touchscreen controller
+
+compatible: "ti,tsc2007"
+
+include: [i2c-device.yaml, touchscreen-common.yaml]
+
+properties:
+  raw-x-min:
+    type: int
+    required: true
+    description: Minimum raw X value used for coordinate scaling.
+
+  raw-y-min:
+    type: int
+    required: true
+    description: Minimum raw Y value used for coordinate scaling.
+
+  raw-x-max:
+    type: int
+    required: true
+    description: Maximum raw X value used for coordinate scaling.
+
+  raw-y-max:
+    type: int
+    required: true
+    description: Maximum raw Y value used for coordinate scaling.
+
+  pressure-min:
+    type: int
+    default: 200
+    description: Minimum Z1 pressure value considered as a valid touch.
+
+  poll-interval-ms:
+    type: int
+    default: 20
+    description: Poll interval used when the controller is read in polling mode.

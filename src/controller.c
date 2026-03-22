@@ -75,7 +75,7 @@ static void enter_sleep_mode(void);
 static void wake_from_sleep(void);
 
 /* Thread definitions */
-K_THREAD_DEFINE(input_mgr_tid, 1024, input_mgr_entry,
+K_THREAD_DEFINE(input_mgr_tid, 1536, input_mgr_entry,
                 NULL, NULL, NULL, 3, 0, 0);
 
 K_THREAD_DEFINE(controller_tid, 4096, controller_entry,

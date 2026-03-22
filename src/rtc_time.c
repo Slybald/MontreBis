@@ -4,6 +4,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/rtc.h>
+#include <zephyr/sys/timeutil.h>
 #include <zephyr/logging/log.h>
 #include <time.h>
 
@@ -14,6 +15,7 @@ LOG_MODULE_REGISTER(rtc_time, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define RTC_READ_ATTEMPTS       5
 #define RTC_READ_RETRY_DELAY_MS 50
+#define SYNC_SAVE_MIN_DELTA_S   3600
 
 static const struct device *rtc_dev;
 
@@ -48,8 +50,7 @@ static time_t rtc_time_to_unix(const struct rtc_time *rt)
     t.tm_mday = rt->tm_mday;
     t.tm_mon  = rt->tm_mon;
     t.tm_year = rt->tm_year;
-    t.tm_isdst = -1;
-    return mktime(&t);
+    return timeutil_timegm(&t);
 }
 
 static void unix_to_rtc_time(time_t timestamp, struct rtc_time *rt)
@@ -163,13 +164,18 @@ void time_sync_from_ble(uint32_t timestamp)
     int64_t offset = (int64_t)timestamp - up_s;
 
     k_mutex_lock(&mtx_time, K_FOREVER);
+    uint32_t prev_sync = g_time_state.last_sync_timestamp;
     g_time_state.offset_sec = offset;
     g_time_state.synced = true;
     g_time_state.source = TIME_SOURCE_BLE;
     g_time_state.last_sync_timestamp = timestamp;
     k_mutex_unlock(&mtx_time);
 
-    storage_save_last_sync(timestamp);
+    uint32_t delta = (timestamp >= prev_sync) ? (timestamp - prev_sync)
+                                              : (prev_sync - timestamp);
+    if (prev_sync == 0 || delta >= SYNC_SAVE_MIN_DELTA_S) {
+        storage_save_last_sync(timestamp);
+    }
 
     LOG_INF("Time synced via BLE: %u (offset=%lld)", timestamp, (long long)offset);
 
@@ -181,12 +187,23 @@ void time_sync_from_ble(uint32_t timestamp)
         if (err == 0) {
             err = rtc_get_time(rtc_dev, &verify);
             if (err == 0) {
+                bool match = (verify.tm_hour == rt.tm_hour &&
+                              verify.tm_min  == rt.tm_min  &&
+                              verify.tm_sec  == rt.tm_sec);
                 k_mutex_lock(&mtx_time, K_FOREVER);
                 g_time_state.rtc_present = true;
-                g_time_state.rtc_health = RTC_HEALTH_OK;
-                g_time_state.last_rtc_error = 0;
+                g_time_state.rtc_health = match ? RTC_HEALTH_OK
+                                                : RTC_HEALTH_INVALID;
+                g_time_state.last_rtc_error = match ? 0 : -EIO;
                 k_mutex_unlock(&mtx_time);
-                LOG_INF("RTC hardware updated");
+                if (match) {
+                    LOG_INF("RTC hardware updated and verified");
+                } else {
+                    LOG_WRN("RTC readback mismatch: wrote %02d:%02d:%02d, "
+                            "read %02d:%02d:%02d",
+                            rt.tm_hour, rt.tm_min, rt.tm_sec,
+                            verify.tm_hour, verify.tm_min, verify.tm_sec);
+                }
             } else {
                 k_mutex_lock(&mtx_time, K_FOREVER);
                 g_time_state.rtc_present = true;
@@ -212,19 +229,22 @@ bool time_get_unix(uint32_t *timestamp_out)
     int64_t offset_sec;
     int64_t now_s;
 
-    k_mutex_lock(&mtx_time, K_FOREVER);
-    synced = g_time_state.synced;
-    offset_sec = g_time_state.offset_sec;
-    k_mutex_unlock(&mtx_time);
-
-    if (!synced || timestamp_out == NULL) {
+    if (timestamp_out == NULL) {
         return false;
     }
 
+    k_mutex_lock(&mtx_time, K_FOREVER);
+    synced = g_time_state.synced;
+    offset_sec = g_time_state.offset_sec;
     now_s = k_uptime_get() / 1000;
-    *timestamp_out = (uint32_t)(offset_sec + now_s);
+    k_mutex_unlock(&mtx_time);
 
-    return synced;
+    if (!synced) {
+        return false;
+    }
+
+    *timestamp_out = (uint32_t)(offset_sec + now_s);
+    return true;
 }
 
 void time_get_status(struct time_status_snapshot *out)

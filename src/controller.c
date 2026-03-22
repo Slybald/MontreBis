@@ -140,6 +140,10 @@ static void enter_sleep_mode(void)
     k_timer_stop(&timer_sensors);
     k_timer_stop(&timer_time);
     atomic_or(&ui_action_flags, UI_ACT_ENTER_SLEEP);
+
+    if (display_dev) {
+        display_blanking_on(display_dev);
+    }
 }
 
 static void wake_from_sleep(void)
@@ -147,6 +151,10 @@ static void wake_from_sleep(void)
     current_power_profile = POWER_PROFILE_ACTIVE;
     current_sensor_interval_ms = SENSOR_READ_INTERVAL_ACTIVE_MS;
     last_activity_ms = k_uptime_get();
+
+    if (display_dev) {
+        display_blanking_off(display_dev);
+    }
 
     atomic_set(&display_sleeping, 0);
     atomic_or(&ui_action_flags, UI_ACT_EXIT_SLEEP);

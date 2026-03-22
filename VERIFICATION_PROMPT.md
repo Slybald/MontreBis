@@ -575,25 +575,25 @@ i2c2_default: i2c2_default {
 ## 14. Checklist de Vérification Finale
 
 ### 14.1 Critiques (bugs fonctionnels)
-- [ ] `rtc_time_to_unix()` : remplacer `mktime()` par `timeutil_timegm()` pour garantir UTC
-- [ ] Pas non persistés : appeler `storage_load_steps()` au démarrage et `storage_save_steps()` périodiquement
-- [ ] Thème non restauré : appeler `storage_load_theme()` après `ui_init()`
-- [ ] Thème non sauvegardé : appeler `storage_save_theme()` lors du cycle de thème
-- [ ] Code mort : supprimer `touch.c` / `touch.h` (FT6206 non utilisé)
-- [ ] Usure flash NVS excessive : limiter `storage_save_last_sync()` à max 1×/heure
+- [x] `rtc_time_to_unix()` : remplacer `mktime()` par `timeutil_timegm()` pour garantir UTC
+- [x] Pas non persistés : appeler `storage_load_steps()` au démarrage et `storage_save_steps()` périodiquement
+- [x] Thème non restauré : appeler `storage_load_theme()` après `ui_init()`
+- [x] Thème non sauvegardé : appeler `storage_save_theme()` lors du cycle de thème
+- [x] Code mort : supprimer `touch.c` / `touch.h` (FT6206 non utilisé)
+- [x] Usure flash NVS excessive : limiter `storage_save_last_sync()` à max 1×/heure
 
 ### 14.2 Importants (problèmes de robustesse)
-- [ ] `ble_is_connected()` : protéger `current_conn` avec un mutex ou `atomic_ptr_t`
+- [x] `ble_is_connected()` : protéger `current_conn` avec volatile + snapshot local
 - [ ] `bt_gatt_notify()` depuis thread préemptif P5 : vérifier si problème avec la version Zephyr utilisée (issue #89705)
 - [ ] Watchdog : implémenter `task_wdt` pour les threads critique (controller, sensors, display)
-- [ ] Veille réelle : appeler `display_blanking_on/off()` pour couper réellement le rétroéclairage
+- [x] Veille réelle : appeler `display_blanking_on/off()` pour couper réellement le rétroéclairage
 - [ ] `time_t` 32 bits : anticiper le problème 2038 si le projet doit durer longtemps
 
 ### 14.3 Améliorations (qualité / précision)
-- [ ] Podomètre : augmenter `STEP_THRESHOLD_HIGH` à 14-15 m/s², ajouter filtrage passe-bas
+- [x] Podomètre : augmenter `STEP_THRESHOLD_HIGH` à 14 m/s², ajouter filtrage passe-bas EMA
 - [ ] Podomètre : activer FIFO LSM6DSO pour augmenter la résolution temporelle
-- [ ] Boussole : implémenter la compensation d'inclinaison (pitch/roll via accéléromètre)
-- [ ] Boussole : centraliser le calcul heading dans `process_sensor_data()` (éviter la duplication)
+- [x] Boussole : implémenter la compensation d'inclinaison (pitch/roll via accéléromètre)
+- [x] Boussole : centraliser le calcul heading dans `process_sensor_data()` via shared_heading_centideg
 - [ ] FPU : activer `CONFIG_FPU=y` après résolution du conflit TF-M pour les performances float
 - [ ] Race condition veille/réveil : documenter le comportement attendu ou ajouter une fenêtre de garde
 
@@ -949,23 +949,23 @@ K_THREAD_DEFINE(input_mgr_tid, 1024, input_mgr_entry,
 ## 24. Checklist Supplémentaire
 
 ### 24.1 Critiques (bugs fonctionnels)
-- [ ] Tactile ne réinitialise pas l'inactivité → veille pendant utilisation active de l'écran (§16.1)
-- [ ] Échec `init_buttons()` gèle tout le système sans récupération (§17.1)
+- [x] Tactile ne réinitialise pas l'inactivité → touch_activity_flag ajouté (§16.1)
+- [x] Échec `init_buttons()` gèle tout le système → dégradation gracieuse (§17.1)
 - [ ] Calibration tactile potentiellement incorrecte en paysage — tester sur hardware (§22.1)
 
 ### 24.2 Importants (robustesse)
-- [ ] Flags BLE `notify_*_enabled` non protégés entre threads (§18.1)
-- [ ] RTC readback ne vérifie pas les données écrites (§18.2)
+- [x] Flags BLE `notify_*_enabled` protégés avec volatile (§18.1)
+- [x] RTC readback vérifie maintenant h/m/s après écriture (§18.2)
 - [ ] Contention I2C entre TSC2007 et capteurs sur le même bus (§19.1)
 - [ ] TSC2007 bloque le system workqueue ~5-10 ms toutes les 20 ms (§19.2)
-- [ ] Race TOCTOU dans `time_get_unix()` (§21.1)
-- [ ] Stack `input_mgr_tid` potentiellement insuffisant avec logging (§23.1)
+- [x] Race TOCTOU dans `time_get_unix()` corrigée — uptime lu sous mutex (§21.1)
+- [x] Stack `input_mgr_tid` augmenté de 1024 à 1536 octets (§23.1)
 
 ### 24.3 Nettoyage
-- [ ] Supprimer `ui_before_modernize.c/h` (code mort + conflit header guard) (§20.2)
-- [ ] Factoriser `event_post_log()` dans `app_events.h` (§20.1)
-- [ ] Documenter le `k_msleep(100)` dans `main.c` (§17.2)
-- [ ] Négocier le MTU BLE dans `connected()` (§18.3)
+- [x] Supprimer `ui_before_modernize.c/h` (§20.2)
+- [ ] Factoriser `event_post_log()` dans `app_events.h` (§20.1) — non faisable proprement (LOG_MODULE par .c)
+- [x] Documenter le `k_msleep(100)` dans `main.c` (§17.2)
+- [x] Négocier le MTU BLE dans `connected()` (§18.3)
 
 ### 24.4 Tests hardware complémentaires
 - [ ] Vérifier l'alignement tactile en mode paysage (swapped-x-y nécessaire ?)

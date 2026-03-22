@@ -632,3 +632,345 @@ i2c2_default: i2c2_default {
 | Zephyr ILI9XXX rotation bug | https://github.com/zephyrproject-rtos/zephyr/issues/33269 |
 | Zephyr bt_gatt_notify issue | https://github.com/zephyrproject-rtos/zephyr/issues/89705 |
 | Zephyr FPU + TF-M PR | https://github.com/nrfconnect/sdk-zephyr/pull/874 |
+
+---
+
+# Vérification Supplémentaire — Audit Approfondi du Code Source
+
+> Cette section complète l'audit initial avec des problèmes supplémentaires découverts lors d'une revue ligne par ligne de l'intégralité du code source. Les numéros de section continuent la numérotation existante.
+
+---
+
+## 16. Tactile — Interactions Non Intégrées à l'Architecture
+
+### Contexte
+L'UI (`ui.c`) enregistre des callbacks LVGL (`LV_EVENT_CLICKED`) sur les widgets tactiles. Ces callbacks appellent directement les fonctions UI comme `ui_switch_screen()`, `ui_toggle_status_popup()`, `ui_update_compass()` sans passer par le bus d'événements.
+
+### Points à vérifier
+
+#### 16.1 Le tactile ne réinitialise pas le timer d'inactivité — Bug UX critique
+```c
+// ui.c — callback tactile
+static void touch_switch_screen_cb(lv_event_t *e)
+{
+    (void)e;
+    ui_switch_screen();  // appel direct, pas d'événement
+}
+```
+```c
+// controller.c — seul endroit où last_activity_ms est mis à jour
+static void handle_button_event(const struct event_msg *msg)
+{
+    ...
+    last_activity_ms = k_uptime_get();
+    ...
+}
+```
+- **Bug** : Quand l'utilisateur interagit via le tactile (changer d'écran, ouvrir le calendrier, fermer la popup), `last_activity_ms` n'est **jamais mis à jour**. Le contrôleur considère l'utilisateur comme inactif.
+- **Conséquence** : La montre passe en veille après 120 s d'inactivité **bouton** même si l'utilisateur utilise activement l'écran tactile. L'expérience utilisateur est incohérente.
+- **Action** : Poster un événement (ex : `EVT_TOUCH_ACTIVITY`) depuis les callbacks tactiles via `event_post()`, ou exposer une fonction `controller_reset_activity()` appelable depuis `ui.c`.
+
+#### 16.2 Callbacks tactiles hors architecture événementielle
+Les 3 callbacks tactiles définis dans `ui.c` (`touch_switch_screen_cb`, `touch_toggle_calendar_cb`, `touch_close_popup_cb`) court-circuitent l'architecture événementielle :
+- `touch_switch_screen_cb` → `ui_switch_screen()` directement (pas de `UI_ACT_SWITCH_SCREEN`)
+- `touch_toggle_calendar_cb` → toggle calendrier sans événement
+- `touch_close_popup_cb` → `ui_toggle_status_popup()` directement
+
+Cela ne cause pas de crash (les callbacks s'exécutent dans le contexte du display thread via `lv_task_handler()`), mais crée deux chemins parallèles pour la même action (bouton vs tactile), rendant le débogage et l'évolution du code plus difficiles.
+
+---
+
+## 17. Initialisation — Scénarios d'Échec et Dégradation
+
+### 17.1 Échec de `init_buttons()` → threads bloqués indéfiniment
+```c
+// main.c
+int main(void) {
+    ...
+    ui_init();                           // OK
+    if (init_buttons() != 0) {
+        LOG_ERR("Button init failed");
+        return -1;                       // ← sortie prématurée
+    }
+    storage_init();                      // jamais appelé
+    rtc_time_init();                     // jamais appelé
+    sensors_init();                      // jamais appelé
+    controller_set_display(display_dev); // jamais appelé
+    ble_init(on_ble_time_update);        // jamais appelé
+    k_sem_give(&sem_display_ready);      // jamais appelé
+    ...
+}
+```
+Les threads sont créés avec `K_THREAD_DEFINE` et démarrent au boot :
+- `display_tid` bloque sur `k_sem_take(&sem_display_ready, K_FOREVER)` → bloqué **pour toujours**
+- `sensors_tid` bloque sur `k_sem_take(&sem_sensor_start, K_FOREVER)` → bloqué **pour toujours**
+- `controller_tid` bloque sur `k_msgq_get(&event_bus, ..., K_FOREVER)` → bloqué **pour toujours** (aucun timer démarré)
+- `input_mgr_tid` bloque sur `k_msgq_get(&raw_input_q, ..., K_FOREVER)` → bloqué **pour toujours** (pas de boutons configurés)
+
+**Conséquence** : Système complètement figé sans aucune possibilité de récupération (pas de watchdog).
+**Action** : Convertir les erreurs d'init en dégradation gracieuse au lieu d'un `return -1`. Alternativement, continuer l'init même si les boutons échouent (les timers et capteurs peuvent fonctionner sans boutons).
+
+### 17.2 Délai initial non documenté
+```c
+// main.c:82
+k_msleep(100);
+```
+Ce délai de 100 ms avant l'init du display n'a pas de commentaire explicatif. Si c'est pour la stabilisation du bus SPI ou du régulateur d'alimentation, cela devrait être documenté. Si ce n'est pas nécessaire, le retirer pour accélérer le démarrage.
+
+---
+
+## 18. BLE — Problèmes Complémentaires
+
+### 18.1 Flags notify_*_enabled non protégés
+```c
+// ble_service.c
+static bool notify_env_enabled;     // écrit par BLE RX thread (CCC callback)
+static bool notify_press_enabled;   // écrit par BLE RX thread
+static bool notify_motion_enabled;  // écrit par BLE RX thread
+static bool notify_mag_enabled;     // écrit par BLE RX thread
+static bool notify_steps_enabled;   // écrit par BLE RX thread
+static bool notify_compass_enabled; // écrit par BLE RX thread
+```
+```c
+// ble_service.c — appelé depuis controller_tid (P5)
+void ble_update_env_data(int16_t temp, uint16_t hum)
+{
+    ...
+    if (!current_conn || !notify_env_enabled) {  // ← lu depuis controller_tid
+        return;
+    }
+    ...
+}
+```
+- Même problème que `current_conn` (§3.2) : ces booleans sont écrits par le BLE RX thread et lus par `controller_tid`.
+- Sur ARM Cortex-M33, les lectures/écritures de `bool` (1 octet) sont atomiques au niveau matériel. Pas de corruption, mais non garanti par le standard C.
+- **Action** : Même solution que pour `current_conn` — utiliser `atomic_t` ou `volatile`, ou protéger par un mutex léger.
+
+### 18.2 Readback RTC sans vérification effective
+```c
+// rtc_time.c — time_sync_from_ble()
+struct rtc_time verify;
+int err = rtc_set_time(rtc_dev, &rt);
+if (err == 0) {
+    err = rtc_get_time(rtc_dev, &verify);
+    if (err == 0) {
+        // ← 'verify' n'est JAMAIS comparée à 'rt'
+        g_time_state.rtc_health = RTC_HEALTH_OK;
+    }
+}
+```
+- Le readback confirme seulement que l'I2C fonctionne, pas que les données écrites sont correctes.
+- **Action** : Comparer au moins les champs `tm_hour`, `tm_min`, `tm_sec` de `verify` avec `rt` pour détecter une écriture corrompue.
+
+### 18.3 Pas de négociation MTU BLE
+- L'application configure des buffers ACL de 251 octets (`CONFIG_BT_BUF_ACL_RX_SIZE=251`) mais ne demande jamais de MTU exchange.
+- Le MTU par défaut est 23 octets (ATT_MTU = 23 → payload max = 20 octets).
+- Les données de notification les plus grandes font 12 octets (motion_data), donc le MTU par défaut suffit. Mais si de futures caractéristiques plus grandes sont ajoutées, le MTU devra être négocié.
+- **Action** : Appeler `bt_gatt_exchange_mtu()` dans le callback `connected()` pour une compatibilité future.
+
+---
+
+## 19. Contention I2C — TSC2007 et Capteurs Partagent le Même Bus
+
+### Contexte
+```
+arduino_i2c (I2C1, P1.02/P1.03) :
+├── HTS221   (addr 0x5F)
+├── LPS22HH  (addr 0x5C)
+├── LIS2MDL  (addr 0x1E)
+├── LSM6DSO  (addr 0x6A)
+└── TSC2007   (addr 0x4A)
+```
+
+### 19.1 Contention bus lors du polling simultané
+- Le TSC2007 fait 6 transactions I2C toutes les 20 ms (poll_interval_ms) : 2× Z + 2× X + 2× Y, chacune avec 500 µs de délai. Total ≈ 3-5 ms de temps bus par cycle.
+- Les capteurs (sensors.c) font 4 `sensor_sample_fetch()` toutes les 250 ms, chacun impliquant 2-6 transactions I2C. Total ≈ 5-10 ms.
+- Zephyr protège le bus I2C par un mutex interne, donc pas de corruption. Mais les lectures TSC2007 peuvent être retardées pendant la lecture des capteurs, causant des artefacts tactiles (jitter, latence).
+- **Action** : Surveiller le jitter tactile sur hardware. Si problème, envisager de mettre le TSC2007 sur I2C2 avec la RTC, ou augmenter le polling interval du tactile quand les capteurs sont actifs.
+
+### 19.2 TSC2007 poll_work sur le system workqueue
+```c
+// input_tsc2007.c
+k_work_init_delayable(&data->poll_work, tsc2007_poll_work_handler);
+k_work_schedule(&data->poll_work, K_NO_WAIT);
+```
+- `k_work_schedule()` utilise le system workqueue par défaut.
+- Le handler fait 6 lectures I2C + 6 × 500 µs de délai = ~5-10 ms de blocage du system workqueue.
+- D'autres services Zephyr (BLE, logging) utilisent aussi le system workqueue.
+- **Action** : Créer un workqueue dédié pour le driver tactile si des problèmes de latence sont observés. Alternativement, vérifier que `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=2048` est suffisant.
+
+---
+
+## 20. Qualité du Code — Nettoyage et Maintenabilité
+
+### 20.1 Duplication de `event_post_log()`
+```c
+// controller.c:91-96
+static void event_post_log(enum event_type type)
+{
+    if (event_post(type) == -EBUSY) {
+        LOG_WRN("Event bus full, dropped type=%d", type);
+    }
+}
+
+// sensors.c:18-23  — copie identique
+static void event_post_log(enum event_type type)
+{
+    if (event_post(type) == -EBUSY) {
+        LOG_WRN("Event bus full, dropped type=%d", type);
+    }
+}
+```
+- Fonction identique définie deux fois dans deux fichiers.
+- **Action** : Déplacer dans `app_events.h` en tant que `static inline`, ou dans un fichier `.c` commun.
+
+### 20.2 Fichiers legacy `ui_before_modernize.c/h` — code mort + conflit de header guard
+- `src/ui/ui_before_modernize.c` et `src/ui/ui_before_modernize.h` ne sont pas dans `CMakeLists.txt`.
+- **Problème critique** : `ui_before_modernize.h` utilise le même include guard que `ui.h` :
+  ```c
+  // ui_before_modernize.h
+  #ifndef UI_H          // ← même guard que ui.h
+  #define UI_H
+  ```
+  Si un fichier incluait les deux headers (par erreur), le second serait silencieusement ignoré.
+- **Action** : Supprimer ces fichiers ou les déplacer dans un dossier `archive/`. Si conservés, changer le guard en `UI_BEFORE_MODERNIZE_H`.
+
+### 20.3 Portabilité du format `%ld` pour `int32_t`
+```c
+// main.c:67-70
+LOG_INF("TOUCH %s x=%ld y=%ld",
+        touch_diag_state.pressed ? "PRESS" : "RELEASE",
+        (long)touch_diag_state.x,
+        (long)touch_diag_state.y);
+```
+- Le cast vers `(long)` est correct (garantit la portabilité), mais l'utilisation de `PRId32` de `<inttypes.h>` serait plus idiomatique pour des variables `int32_t`.
+
+### 20.4 Vérification `device_is_ready()` redondante à chaque cycle capteur
+```c
+// sensors.c — dans la boucle principale
+if (device_is_ready(hts221_dev)) {
+    if (sensor_sample_fetch(hts221_dev) == 0) { ... }
+}
+```
+- `device_is_ready()` est vérifié à chaque cycle de 250 ms pour les 4 capteurs.
+- Un device Zephyr ne transite pas de "ready" à "not ready" en runtime.
+- **Impact** : Négligeable (~4 appels de fonction par cycle), mais c'est du code défensif inutile. Les vérifications dans `sensors_init()` suffisent.
+
+---
+
+## 21. Gestion du Temps — Problème TOCTOU
+
+### 21.1 Race condition subtile dans `time_get_unix()`
+```c
+bool time_get_unix(uint32_t *timestamp_out)
+{
+    bool synced;
+    int64_t offset_sec;
+
+    k_mutex_lock(&mtx_time, K_FOREVER);
+    synced = g_time_state.synced;
+    offset_sec = g_time_state.offset_sec;        // ← lecture sous mutex
+    k_mutex_unlock(&mtx_time);
+
+    if (!synced || timestamp_out == NULL) {
+        return false;
+    }
+
+    now_s = k_uptime_get() / 1000;               // ← hors mutex
+    *timestamp_out = (uint32_t)(offset_sec + now_s);
+
+    return synced;
+}
+```
+- Entre le `k_mutex_unlock` et le `k_uptime_get()`, un autre thread peut appeler `time_sync_from_ble()` et modifier `offset_sec`.
+- Le timestamp calculé utiliserait l'ancien offset avec un uptime plus récent, créant une erreur transitoire.
+- **Impact réel** : Faible (erreur de quelques ms maximum), car la synchronisation BLE est rare. Mais le pattern n'est pas techniquement correct.
+- **Action** : Déplacer `k_uptime_get()` à l'intérieur du mutex, ou utiliser un mécanisme lock-free (stocker le timestamp Unix directement dans un `atomic_t` 64 bits si disponible).
+
+---
+
+## 22. TSC2007 — Calibration Tactile pour Mode Paysage
+
+### 22.1 Propriétés `touchscreen-common.yaml` manquantes dans l'overlay
+```dts
+tsc2007@4a {
+    compatible = "ti,tsc2007";
+    screen-width  = <240>;
+    screen-height = <320>;
+    raw-x-min = <150>;   raw-x-max = <3800>;
+    raw-y-min = <130>;   raw-y-max = <4000>;
+    pressure-min = <200>;
+    /* MANQUE : swapped-x-y, inverted-x, inverted-y */
+};
+```
+- Le binding `ti,tsc2007.yaml` inclut `touchscreen-common.yaml` qui fournit les propriétés `swapped-x-y`, `inverted-x`, `inverted-y`.
+- Le display est en mode paysage (rotation=90°, résolution effective 320×240).
+- Les dimensions déclarées du TSC2007 sont 240×320 (portrait).
+- **Sans** `swapped-x-y = true`, les coordonnées tactiles portrait sont mappées directement sur l'affichage paysage. Le driver `input_tsc2007.c` lit `common.screen_width` (240) et `common.screen_height` (320) pour le scaling, mais les coordonnées ne sont pas transposées.
+- Le code dans `tsc2007_report_pos()` vérifie `cfg->swapped_x_y` et `cfg->inverted_x/y`, mais ces flags ne sont pas définis dans l'overlay.
+- **Action critique** : Tester sur hardware pour vérifier l'alignement tactile. Si X et Y sont inversés, ajouter `swapped-x-y;` et possiblement `inverted-x;` ou `inverted-y;` dans le nœud TSC2007 de l'overlay.
+
+---
+
+## 23. Mémoire et Stack — Analyse des Risques
+
+### 23.1 Stack `input_mgr_tid` — 1024 octets potentiellement insuffisant
+```c
+K_THREAD_DEFINE(input_mgr_tid, 1024, input_mgr_entry,
+                NULL, NULL, NULL, 3, 0, 0);
+```
+- Le thread `input_mgr` utilise :
+  - `k_msgq_get` (~64 octets de contexte)
+  - `event_post_log` → `LOG_WRN` (le logging Zephyr peut consommer 200-400 octets de stack selon la configuration)
+  - Variable locale `enum raw_input raw` + `int64_t now`
+  - Contexte de switch (~80 octets sur Cortex-M33)
+- 1024 octets est serré si le logging est actif. `CONFIG_LOG_MODE_DEFERRED=y` réduit le risque (les logs sont copiés vers un buffer), mais le formatage initial utilise quand même du stack.
+- **Action** : Activer `CONFIG_THREAD_ANALYZER=y` et vérifier l'utilisation réelle du stack sur hardware. Augmenter à 1536 si nécessaire.
+
+### 23.2 Utilisation RAM totale estimée
+| Composant | Estimation |
+|---|---|
+| Stacks threads (1K + 4K + 4K + 10K + 4K main) | ~23 Ko |
+| System workqueue stack | 2 Ko |
+| BLE stack (connexion + ATT + L2CAP) | ~10-15 Ko |
+| LVGL memory pool | 32 Ko |
+| LVGL VDB (20% de 153600) | ~30 Ko |
+| Event bus + raw_input_q | ~2 Ko |
+| Variables globales (snapshots, BLE buffers, UI objects) | ~5-10 Ko |
+| Zephyr kernel objects | ~5 Ko |
+| **Total estimé** | **~115-125 Ko** |
+
+- nRF5340 App Core : 512 Ko RAM (non-sécurisé). TF-M réserve ~64 Ko pour le côté sécurisé.
+- RAM disponible ≈ 448 Ko. L'utilisation estimée ≈ 125 Ko → **marge confortable (~320 Ko libres)**.
+- **Note** : Si le FPU est activé avec `CONFIG_FPU_SHARING=y`, chaque thread qui utilise le FPU aura ~130 octets supplémentaires de contexte sauvegardé.
+
+---
+
+## 24. Checklist Supplémentaire
+
+### 24.1 Critiques (bugs fonctionnels)
+- [ ] Tactile ne réinitialise pas l'inactivité → veille pendant utilisation active de l'écran (§16.1)
+- [ ] Échec `init_buttons()` gèle tout le système sans récupération (§17.1)
+- [ ] Calibration tactile potentiellement incorrecte en paysage — tester sur hardware (§22.1)
+
+### 24.2 Importants (robustesse)
+- [ ] Flags BLE `notify_*_enabled` non protégés entre threads (§18.1)
+- [ ] RTC readback ne vérifie pas les données écrites (§18.2)
+- [ ] Contention I2C entre TSC2007 et capteurs sur le même bus (§19.1)
+- [ ] TSC2007 bloque le system workqueue ~5-10 ms toutes les 20 ms (§19.2)
+- [ ] Race TOCTOU dans `time_get_unix()` (§21.1)
+- [ ] Stack `input_mgr_tid` potentiellement insuffisant avec logging (§23.1)
+
+### 24.3 Nettoyage
+- [ ] Supprimer `ui_before_modernize.c/h` (code mort + conflit header guard) (§20.2)
+- [ ] Factoriser `event_post_log()` dans `app_events.h` (§20.1)
+- [ ] Documenter le `k_msleep(100)` dans `main.c` (§17.2)
+- [ ] Négocier le MTU BLE dans `connected()` (§18.3)
+
+### 24.4 Tests hardware complémentaires
+- [ ] Vérifier l'alignement tactile en mode paysage (swapped-x-y nécessaire ?)
+- [ ] Mesurer le jitter tactile pendant la lecture simultanée des capteurs I2C
+- [ ] Vérifier l'utilisation stack avec `CONFIG_THREAD_ANALYZER=y`
+- [ ] Tester le scénario d'échec boutons (débrancher les boutons) et vérifier le comportement système
+- [ ] Tester le tactile pendant le mode veille (devrait-il réveiller la montre ?)
+- [ ] Mesurer le temps total d'initialisation (impact du `k_msleep(100)` initial)

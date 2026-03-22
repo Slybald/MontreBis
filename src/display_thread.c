@@ -4,7 +4,6 @@
 #include <zephyr/sys/atomic.h>
 #include <zephyr/logging/log.h>
 #include <lvgl.h>
-#include <math.h>
 #include <time.h>
 
 #include "app_events.h"
@@ -77,11 +76,8 @@ static void display_entry(void *p1, void *p2, void *p3)
                                        snap.magn[2]);
 
                 if (snap.valid_flags & SNAP_VALID_MAG) {
-                    const float rad2deg = 57.2957795f;
-                    float heading = atan2f(snap.magn[1], snap.magn[0]) * rad2deg;
-                    if (heading < 0.0f) {
-                        heading += 360.0f;
-                    }
+                    float heading = (float)atomic_get(&shared_heading_centideg)
+                                    / 100.0f;
                     ui_update_compass(heading);
                 }
 

@@ -49,6 +49,7 @@ atomic_t ui_action_flags;
 atomic_t sensor_display_dirty;
 atomic_t display_sleeping;
 atomic_t shared_step_count;
+atomic_t shared_heading_centideg;
 atomic_t touch_activity_flag;
 static int64_t last_activity_ms;
 
@@ -56,9 +57,13 @@ static int64_t last_activity_ms;
 static uint32_t step_count;
 static uint32_t step_count_last_saved;
 static bool  step_rising;
-#define STEP_THRESHOLD_HIGH  12.0f
+static float filtered_accel_mag;
+#define STEP_THRESHOLD_HIGH  14.0f
 #define STEP_THRESHOLD_LOW   8.0f
 #define STEP_SAVE_INTERVAL   100
+#define ACCEL_MAG_FILTER_ALPHA 0.3f
+
+#define RAD2DEG 57.2957795f
 
 /* Forward declarations */
 static void input_mgr_entry(void *, void *, void *);
@@ -278,26 +283,54 @@ static void process_sensor_data(void)
             (int16_t)(snap.gyro[2] * 100.0f));
     }
 
-    /* Compass heading from magnetometer */
+    /* Compass heading from magnetometer — tilt-compensated if accel available */
     if (snap.valid_flags & SNAP_VALID_MAG) {
-        const float RAD2DEG = 57.2957795f;
-        float heading = atan2f(snap.magn[1], snap.magn[0]) * RAD2DEG;
-        if (heading < 0.0f) heading += 360.0f;
         ble_update_magnetometer(
             (int16_t)(snap.magn[0] * 1000.0f),
             (int16_t)(snap.magn[1] * 1000.0f),
             (int16_t)(snap.magn[2] * 1000.0f));
+
+        float heading;
+
+        if (snap.valid_flags & SNAP_VALID_MOTION) {
+            float ax = snap.accel[0], ay = snap.accel[1], az = snap.accel[2];
+            float mx = snap.magn[0],  my = snap.magn[1],  mz = snap.magn[2];
+            float g = sqrtf(ax * ax + ay * ay + az * az);
+
+            if (g > 0.5f) {
+                float pitch = asinf(-ax / g);
+                float roll  = atan2f(ay, az);
+                float cos_p = cosf(pitch), sin_p = sinf(pitch);
+                float cos_r = cosf(roll),  sin_r = sinf(roll);
+
+                float bx = mx * cos_p + mz * sin_p;
+                float by = mx * sin_r * sin_p + my * cos_r
+                           - mz * sin_r * cos_p;
+                heading = atan2f(-by, bx) * RAD2DEG;
+            } else {
+                heading = atan2f(snap.magn[1], snap.magn[0]) * RAD2DEG;
+            }
+        } else {
+            heading = atan2f(snap.magn[1], snap.magn[0]) * RAD2DEG;
+        }
+
+        if (heading < 0.0f) heading += 360.0f;
         ble_update_compass((int16_t)(heading * 100.0f));
+        atomic_set(&shared_heading_centideg, (atomic_val_t)(int)(heading * 100.0f));
     }
 
-    /* Pedometer: simple peak detection on acceleration magnitude */
+    /* Pedometer: peak detection on low-pass filtered acceleration magnitude */
     if (snap.valid_flags & SNAP_VALID_MOTION) {
         float mag = sqrtf(snap.accel[0] * snap.accel[0] +
                           snap.accel[1] * snap.accel[1] +
                           snap.accel[2] * snap.accel[2]);
-        if (!step_rising && mag > STEP_THRESHOLD_HIGH) {
+
+        filtered_accel_mag = ACCEL_MAG_FILTER_ALPHA * mag
+                           + (1.0f - ACCEL_MAG_FILTER_ALPHA) * filtered_accel_mag;
+
+        if (!step_rising && filtered_accel_mag > STEP_THRESHOLD_HIGH) {
             step_rising = true;
-        } else if (step_rising && mag < STEP_THRESHOLD_LOW) {
+        } else if (step_rising && filtered_accel_mag < STEP_THRESHOLD_LOW) {
             step_rising = false;
             step_count++;
             ble_update_steps(step_count);

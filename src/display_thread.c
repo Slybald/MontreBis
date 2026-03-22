@@ -11,6 +11,7 @@
 #include "ui/ui.h"
 #include "ble_service.h"
 #include "rtc_time.h"
+#include "storage.h"
 #include "display_thread.h"
 
 LOG_MODULE_REGISTER(display, CONFIG_LOG_DEFAULT_LEVEL);
@@ -42,7 +43,10 @@ static void display_entry(void *p1, void *p2, void *p3)
         bool entering_sleep = (actions & UI_ACT_ENTER_SLEEP) != 0U;
 
         if (actions & UI_ACT_SWITCH_SCREEN)   ui_switch_screen();
-        if (actions & UI_ACT_CYCLE_THEME)     ui_cycle_theme_color();
+        if (actions & UI_ACT_CYCLE_THEME) {
+            ui_cycle_theme_color();
+            storage_save_theme(ui_get_theme_index());
+        }
         if (actions & UI_ACT_BRIGHTNESS)      ui_toggle_brightness();
         if (actions & UI_ACT_STATUS_POPUP)    ui_toggle_status_popup();
         if (actions & UI_ACT_EXIT_SLEEP)      ui_hide_sleep_overlay();

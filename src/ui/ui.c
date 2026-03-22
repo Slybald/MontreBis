@@ -804,6 +804,20 @@ void ui_cycle_theme_color(void)
     apply_theme();
 }
 
+uint8_t ui_get_theme_index(void)
+{
+    return theme_index;
+}
+
+void ui_set_theme_index(uint8_t idx)
+{
+    if (idx >= THEME_COUNT) {
+        idx = 0;
+    }
+    theme_index = idx;
+    apply_theme();
+}
+
 /* Toggle the dim overlay. */
 void ui_toggle_brightness(void)
 {

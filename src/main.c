@@ -97,6 +97,8 @@ int main(void)
     }
 
     storage_init();
+    ui_set_theme_index(storage_load_theme());
+
     rtc_time_init();
     sensors_init();
     controller_set_display(display_dev);

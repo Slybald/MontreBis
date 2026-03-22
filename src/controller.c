@@ -12,6 +12,7 @@
 #include "ui/ui.h"
 #include "ble_service.h"
 #include "rtc_time.h"
+#include "storage.h"
 #include "controller.h"
 
 LOG_MODULE_REGISTER(controller, CONFIG_LOG_DEFAULT_LEVEL);
@@ -52,9 +53,11 @@ static int64_t last_activity_ms;
 
 /* Pedometer state */
 static uint32_t step_count;
+static uint32_t step_count_last_saved;
 static bool  step_rising;
 #define STEP_THRESHOLD_HIGH  12.0f
 #define STEP_THRESHOLD_LOW   8.0f
+#define STEP_SAVE_INTERVAL   100
 
 /* Forward declarations */
 static void input_mgr_entry(void *, void *, void *);
@@ -101,7 +104,8 @@ void controller_set_display(const struct device *dev)
     current_power_profile = POWER_PROFILE_ACTIVE;
     current_sensor_interval_ms = SENSOR_READ_INTERVAL_ACTIVE_MS;
     last_activity_ms = k_uptime_get();
-    step_count = 0;
+    step_count = storage_load_steps();
+    step_count_last_saved = step_count;
     atomic_set(&ui_action_flags, 0);
     atomic_set(&sensor_display_dirty, 0);
     atomic_set(&display_sleeping, 0);
@@ -288,6 +292,10 @@ static void process_sensor_data(void)
             step_rising = false;
             step_count++;
             ble_update_steps(step_count);
+            if ((step_count - step_count_last_saved) >= STEP_SAVE_INTERVAL) {
+                storage_save_steps(step_count);
+                step_count_last_saved = step_count;
+            }
         }
         atomic_set(&shared_step_count, (atomic_val_t)step_count);
     }

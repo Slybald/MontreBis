@@ -118,6 +118,16 @@ void ui_update_compass(float heading_deg);
 void ui_update_steps(uint32_t step_count, uint32_t goal);
 
 /**
+ * @brief Get current theme index (0..3)
+ */
+uint8_t ui_get_theme_index(void);
+
+/**
+ * @brief Set theme index and apply (for restoring from storage)
+ */
+void ui_set_theme_index(uint8_t idx);
+
+/**
  * @brief Update BLE connection status (for status popup)
  * @param connected true if BLE client is connected
  */

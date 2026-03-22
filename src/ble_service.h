@@ -74,4 +74,9 @@ void ble_update_steps(uint32_t step_count);
  */
 bool ble_is_connected(void);
 
+/**
+ * @brief Get current ATT MTU (0 if not connected)
+ */
+uint16_t ble_get_mtu(void);
+
 #endif /* BLE_SERVICE_H */

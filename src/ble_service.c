@@ -45,14 +45,17 @@ static struct bt_uuid_128 mag_uuid = BT_UUID_INIT_128(BT_UUID_WATCH_MAG_VAL);
 static struct bt_uuid_128 steps_uuid = BT_UUID_INIT_128(BT_UUID_WATCH_STEPS_VAL);
 static struct bt_uuid_128 compass_uuid = BT_UUID_INIT_128(BT_UUID_WATCH_COMPASS_VAL);
 
-/* Connection state */
-static struct bt_conn *current_conn;
-static bool notify_env_enabled;
-static bool notify_press_enabled;
-static bool notify_motion_enabled;
-static bool notify_mag_enabled;
-static bool notify_steps_enabled;
-static bool notify_compass_enabled;
+/* Connection state — written by BLE RX thread, read by controller_tid.
+ * volatile ensures the compiler always re-reads from memory.
+ * On ARM Cortex-M33, aligned pointer and bool loads/stores are atomic.
+ */
+static volatile struct bt_conn *current_conn;
+static volatile bool notify_env_enabled;
+static volatile bool notify_press_enabled;
+static volatile bool notify_motion_enabled;
+static volatile bool notify_mag_enabled;
+static volatile bool notify_steps_enabled;
+static volatile bool notify_compass_enabled;
 static ble_time_update_cb_t time_update_callback = NULL;
 
 /* Sensor data buffers */
@@ -243,6 +246,20 @@ static const struct bt_data sd[] = {
 };
 
 /* Connection callbacks */
+static void mtu_exchange_cb(struct bt_conn *conn, uint8_t att_err,
+                            struct bt_gatt_exchange_params *params)
+{
+    if (att_err) {
+        LOG_WRN("MTU exchange failed (err %u)", att_err);
+    } else {
+        LOG_INF("MTU exchange OK — MTU=%u", bt_gatt_get_mtu(conn));
+    }
+}
+
+static struct bt_gatt_exchange_params mtu_params = {
+    .func = mtu_exchange_cb,
+};
+
 static void connected(struct bt_conn *conn, uint8_t err)
 {
     if (err) {
@@ -252,6 +269,11 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
     current_conn = bt_conn_ref(conn);
     LOG_INF("BLE Connected");
+
+    int mtu_err = bt_gatt_exchange_mtu(conn, &mtu_params);
+    if (mtu_err) {
+        LOG_WRN("MTU exchange request failed: %d", mtu_err);
+    }
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -259,7 +281,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     LOG_INF("BLE Disconnected (reason %u)", reason);
 
     if (current_conn) {
-        bt_conn_unref(current_conn);
+        bt_conn_unref((struct bt_conn *)current_conn);
         current_conn = NULL;
     }
 
@@ -270,9 +292,10 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     notify_steps_enabled = false;
     notify_compass_enabled = false;
 
-    int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-    if (err) {
-        LOG_ERR("Re-advertising failed (err %d)", err);
+    int adv_err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad),
+                                  sd, ARRAY_SIZE(sd));
+    if (adv_err) {
+        LOG_ERR("Re-advertising failed (err %d)", adv_err);
     } else {
         LOG_INF("Re-advertising started");
     }
@@ -317,11 +340,12 @@ void ble_update_env_data(int16_t temp, uint16_t hum)
     env_data[2] = hum & 0xFF;
     env_data[3] = (hum >> 8) & 0xFF;
 
-    if (!current_conn || !notify_env_enabled) {
+    struct bt_conn *conn = (struct bt_conn *)current_conn;
+    if (!conn || !notify_env_enabled) {
         return;
     }
 
-    int err = bt_gatt_notify(current_conn, &sensor_svc.attrs[ATTR_ENV_VAL], env_data, sizeof(env_data));
+    int err = bt_gatt_notify(conn, &sensor_svc.attrs[ATTR_ENV_VAL], env_data, sizeof(env_data));
     if (err && err != -ENOTCONN) {
         LOG_WRN("Env notify failed: %d", err);
     }
@@ -334,11 +358,12 @@ void ble_update_pressure(uint32_t press)
     press_data[2] = (press >> 16) & 0xFF;
     press_data[3] = (press >> 24) & 0xFF;
 
-    if (!current_conn || !notify_press_enabled) {
+    struct bt_conn *conn = (struct bt_conn *)current_conn;
+    if (!conn || !notify_press_enabled) {
         return;
     }
 
-    int err = bt_gatt_notify(current_conn, &sensor_svc.attrs[ATTR_PRESS_VAL], press_data, sizeof(press_data));
+    int err = bt_gatt_notify(conn, &sensor_svc.attrs[ATTR_PRESS_VAL], press_data, sizeof(press_data));
     if (err && err != -ENOTCONN) {
         LOG_WRN("Pressure notify failed: %d", err);
     }
@@ -360,11 +385,12 @@ void ble_update_motion_data(int16_t ax, int16_t ay, int16_t az,
     motion_data[10] = gz & 0xFF;
     motion_data[11] = (gz >> 8) & 0xFF;
 
-    if (!current_conn || !notify_motion_enabled) {
+    struct bt_conn *conn = (struct bt_conn *)current_conn;
+    if (!conn || !notify_motion_enabled) {
         return;
     }
 
-    int err = bt_gatt_notify(current_conn, &sensor_svc.attrs[ATTR_MOTION_VAL], motion_data, sizeof(motion_data));
+    int err = bt_gatt_notify(conn, &sensor_svc.attrs[ATTR_MOTION_VAL], motion_data, sizeof(motion_data));
     if (err && err != -ENOTCONN) {
         LOG_WRN("Motion notify failed: %d", err);
     }
@@ -379,8 +405,9 @@ void ble_update_magnetometer(int16_t mx, int16_t my, int16_t mz)
     mag_data[4] = mz & 0xFF;
     mag_data[5] = (mz >> 8) & 0xFF;
 
-    if (!current_conn || !notify_mag_enabled) return;
-    int err = bt_gatt_notify(current_conn, &sensor_svc.attrs[ATTR_MAG_VAL], mag_data, sizeof(mag_data));
+    struct bt_conn *conn = (struct bt_conn *)current_conn;
+    if (!conn || !notify_mag_enabled) return;
+    int err = bt_gatt_notify(conn, &sensor_svc.attrs[ATTR_MAG_VAL], mag_data, sizeof(mag_data));
     if (err && err != -ENOTCONN) {
         LOG_WRN("Mag notify failed: %d", err);
     }
@@ -391,8 +418,9 @@ void ble_update_compass(int16_t heading_centideg)
     compass_data[0] = heading_centideg & 0xFF;
     compass_data[1] = (heading_centideg >> 8) & 0xFF;
 
-    if (!current_conn || !notify_compass_enabled) return;
-    int err = bt_gatt_notify(current_conn, &sensor_svc.attrs[ATTR_COMPASS_VAL], compass_data, sizeof(compass_data));
+    struct bt_conn *conn = (struct bt_conn *)current_conn;
+    if (!conn || !notify_compass_enabled) return;
+    int err = bt_gatt_notify(conn, &sensor_svc.attrs[ATTR_COMPASS_VAL], compass_data, sizeof(compass_data));
     if (err && err != -ENOTCONN) {
         LOG_WRN("Compass notify failed: %d", err);
     }
@@ -405,8 +433,9 @@ void ble_update_steps(uint32_t step_count)
     steps_data[2] = (step_count >> 16) & 0xFF;
     steps_data[3] = (step_count >> 24) & 0xFF;
 
-    if (!current_conn || !notify_steps_enabled) return;
-    int err = bt_gatt_notify(current_conn, &sensor_svc.attrs[ATTR_STEPS_VAL], steps_data, sizeof(steps_data));
+    struct bt_conn *conn = (struct bt_conn *)current_conn;
+    if (!conn || !notify_steps_enabled) return;
+    int err = bt_gatt_notify(conn, &sensor_svc.attrs[ATTR_STEPS_VAL], steps_data, sizeof(steps_data));
     if (err && err != -ENOTCONN) {
         LOG_WRN("Steps notify failed: %d", err);
     }
@@ -415,4 +444,13 @@ void ble_update_steps(uint32_t step_count)
 bool ble_is_connected(void)
 {
     return (current_conn != NULL);
+}
+
+uint16_t ble_get_mtu(void)
+{
+    struct bt_conn *conn = (struct bt_conn *)current_conn;
+    if (!conn) {
+        return 0;
+    }
+    return bt_gatt_get_mtu(conn);
 }

@@ -98,6 +98,7 @@ extern atomic_t ui_action_flags;
 extern atomic_t sensor_display_dirty;
 extern atomic_t display_sleeping;
 extern atomic_t shared_step_count;
+extern atomic_t touch_activity_flag;
 
 /* Small queue helpers. */
 

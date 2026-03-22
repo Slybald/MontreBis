@@ -79,6 +79,7 @@ int main(void)
     LOG_INF("Connected Watch — Event-Driven Architecture");
     LOG_INF("========================================");
 
+    /* Allow display hardware and regulators to stabilize after boot */
     k_msleep(100);
 
     const struct device *display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
@@ -92,8 +93,7 @@ int main(void)
     LOG_INF("UI initialized");
 
     if (init_buttons() != 0) {
-        LOG_ERR("Button init failed");
-        return -1;
+        LOG_ERR("Button init failed — continuing without buttons");
     }
 
     storage_init();

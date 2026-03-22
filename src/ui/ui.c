@@ -4,6 +4,7 @@
  */
 
 #include "ui.h"
+#include "../app_events.h"
 #include <lvgl.h>
 #include <math.h>
 #include <stdio.h>
@@ -134,16 +135,18 @@ static const char *get_theme_name(void)
     return get_theme_palette()->name;
 }
 
-/* Touch callbacks */
+/* Touch callbacks — also signal activity to prevent sleep during touch use */
 static void touch_switch_screen_cb(lv_event_t *e)
 {
     (void)e;
+    atomic_set(&touch_activity_flag, 1);
     ui_switch_screen();
 }
 
 static void touch_toggle_calendar_cb(lv_event_t *e)
 {
     (void)e;
+    atomic_set(&touch_activity_flag, 1);
 
     if (!calendar_panel) {
         return;
@@ -159,6 +162,7 @@ static void touch_toggle_calendar_cb(lv_event_t *e)
 static void touch_close_popup_cb(lv_event_t *e)
 {
     (void)e;
+    atomic_set(&touch_activity_flag, 1);
     if (!lv_obj_has_flag(status_modal, LV_OBJ_FLAG_HIDDEN)) {
         ui_toggle_status_popup();
     }

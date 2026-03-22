@@ -49,6 +49,7 @@ atomic_t ui_action_flags;
 atomic_t sensor_display_dirty;
 atomic_t display_sleeping;
 atomic_t shared_step_count;
+atomic_t touch_activity_flag;
 static int64_t last_activity_ms;
 
 /* Pedometer state */
@@ -369,6 +370,9 @@ static void controller_entry(void *p1, void *p2, void *p3)
 
             case EVT_TICK_TIME:
             {
+                if (atomic_cas(&touch_activity_flag, 1, 0)) {
+                    last_activity_ms = k_uptime_get();
+                }
                 int64_t inactive_ms = k_uptime_get() - last_activity_ms;
 
                 if (inactive_ms >= (INACTIVITY_SLEEP_SEC * 1000LL)) {
@@ -410,6 +414,9 @@ static void controller_entry(void *p1, void *p2, void *p3)
 
             case EVT_TICK_TIME:
             {
+                if (atomic_cas(&touch_activity_flag, 1, 0)) {
+                    last_activity_ms = k_uptime_get();
+                }
                 int64_t inactive_ms = k_uptime_get() - last_activity_ms;
 
                 if (inactive_ms >= (INACTIVITY_SLOWDOWN_SEC * 1000LL) &&
